@@ -5,6 +5,10 @@ function startApp(jQuery, window) {
   var currentHash = "";
 
   const DEFAULT_HASH = "guide/getting-started";
+  const BUGZILLA_SHOW = "https://bugzilla.mozilla.org/show_bug.cgi?id=";
+  const BUGZILLA_REGEXP = /bug\s+([0-9]+)/g;
+  const DOCTEST_REGEXP = />>>.+/g;
+  const DOCTEST_BLANKLINE_REGEXP = /<BLANKLINE>/g;
   const IDLE_PING_DELAY = 500;
   const CHECK_HASH_DELAY = 100;
 
@@ -28,6 +32,11 @@ function startApp(jQuery, window) {
       var pkgName = parts[1];
       var moduleName = parts.slice(2).join("/");
       showModuleDetail(pkgName, moduleName);
+      break;
+		case "apidoc":
+      var pkgName = parts[1];
+      var moduleName = parts.slice(2).join("/");
+      showApidocDetail(pkgName, moduleName);
       break;
     case "guide":
       showGuideDetail(parts[1]);
@@ -77,6 +86,21 @@ function startApp(jQuery, window) {
           $(this).attr("target", "_self");
       });
   }
+  function insertBugzillaLinks(text) {
+    return text.replace(BUGZILLA_REGEXP,
+                        "bug [$1](" + BUGZILLA_SHOW + "$1)");
+  }
+
+  function removePyDoctestCode(text) {
+    return text.replace(DOCTEST_REGEXP, "")
+               .replace(DOCTEST_BLANKLINE_REGEXP, "");
+  }
+
+  function markdownToHtml(text) {
+    var converter = new Showdown.converter();
+    text = removePyDoctestCode(insertBugzillaLinks(text));
+    return converter.makeHtml(text);
+  }
 
   function renderInterleavedAPIDocs(where, hunks) {
     $(where).empty();
@@ -91,6 +115,88 @@ function startApp(jQuery, window) {
     }
     hunks.forEach(render_hunk);
   }
+
+	function sourceToApidoc(code) {
+		var lines = code.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+		var blocks = [];
+		var blockText = "";
+		var codeText = "";
+		var firstCommentLine;
+		var lastCommentLine;
+		var div = $("<div class=\"apidoc-container\"/>");
+
+    function trim(str) {
+      return str.replace(/^\s+|\s+$/g,"");
+    };
+
+		function maybeAppendBlock() {
+				if (blockText)
+						blocks.push({text: blockText,
+												 lineno: firstCommentLine,
+												 numLines: lastCommentLine - firstCommentLine + 1,
+												 code: codeText});
+     
+				else // WORKAROUND: added to print a not commented source file
+						blocks.push({text: "",
+												 lineno: firstCommentLine,
+												 numLines: lastCommentLine - firstCommentLine + 1,
+												 code: codeText});
+		}
+
+		jQuery.each(
+				lines,
+				function(lineNum) {
+						var line = this;
+						var isCode = true;
+						var isComment = (trim(line).indexOf("//") == 0);
+						if (isComment) {
+								var startIndex = line.indexOf("//");
+								var text = trim(line.slice(startIndex + 3));
+								if (lineNum == lastCommentLine + 1) {
+										blockText += text + "\n";
+										lastCommentLine += 1;
+										isCode = false;
+								} else if (text.charAt(0) == "=" || text.charAt(0) == "#") {
+										maybeAppendBlock();
+										firstCommentLine = lineNum;
+										lastCommentLine = lineNum;
+										blockText = text + "\n";
+										codeText = "";
+										isCode = false;
+								}
+						}
+						if (isCode)
+								codeText += line + "\r\n";
+		});
+		
+		maybeAppendBlock();
+
+		jQuery.each(
+				blocks,
+				function(i) {
+						var docs = $('<div class="documentation">');
+						//$(docs).css(App.columnCss); TODO: apply a style
+						$(docs).html(markdownToHtml(this.text));
+						$(div).append(docs);
+						var code = $('<pre class="code prettyprint">');
+						//$(code).css(App.columnCss); TODO: apply a style
+						code.text(this.code);
+						$(div).append(code);
+						
+						// Make sure the block ends with a blank line to make it high enough.
+						// For IE8 an extra space is needed, because otherwise the \n is ignored.
+						// FIXME: This doesn't fix issue 13 in IE7 yet.
+						code.append('\n ');
+						
+						var docsSurplus = docs.height() - code.height() + 1;
+						if (docsSurplus > 0)
+								code.css({paddingBottom: docsSurplus + "px"});
+						
+						$(div).append('<div class="divider">');
+		});
+
+		return div;
+	}
 
   function getPkgFile(pkg, filename, filter, cb) {
     if (pkgHasFile(pkg, filename)) {
@@ -194,6 +300,26 @@ function startApp(jQuery, window) {
     queuedContent = null;
   }
 
+	function showApidocDetail(pkgName, moduleName) {
+		//TODO: generate apidoc
+    var pkg = packages[pkgName];
+    var entry = $("#templates .module-apidoc").clone();
+    var filename = "lib/" + moduleName + ".js";
+
+    entry.find(".name").text(moduleName);
+    queueMainContent(entry);
+    getPkgFile(pkg, filename, sourceToApidoc,
+               function(dom) {
+                 if (dom)
+										 entry.find(".apidoc").html("").append(dom);
+
+								 entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName);
+								 entry.find(".module-apidoc-button").attr("href","#apidoc/"+pkgName+"/"+moduleName);
+								 prettyPrint();
+                 showMainContent(entry, pkgFileUrl(pkg, filename));
+               });
+  }
+
   function showModuleDetail(pkgName, moduleName) {
     var pkg = packages[pkgName];
     var entry = $("#templates .module-detail").clone();
@@ -204,8 +330,12 @@ function startApp(jQuery, window) {
     queueMainContent(entry);
     renderPkgAPI(pkg, source_filename, json_filename, entry.find(".docs"),
                  function(please_display) {
-                   if (please_display)
+                   if (please_display) {
+                     entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName);
+					 entry.find(".module-apidoc-button").attr("href","#apidoc/"+pkgName+"/"+moduleName);
+
                      showMainContent(entry, pkgFileUrl(pkg, source_filename));
+                   }     
                  });
   }
 
