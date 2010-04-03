@@ -136,7 +136,7 @@ function startApp(jQuery, window) {
 												 numLines: lastCommentLine - firstCommentLine + 1,
 												 code: codeText});
      
-				else // WORKAROUND: added to print a not commented source file
+				else if (codeText) // WORKAROUND: added to print a not commented source file
 						blocks.push({text: "",
 												 lineno: firstCommentLine,
 												 numLines: lastCommentLine - firstCommentLine + 1,
