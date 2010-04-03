@@ -224,3 +224,16 @@ table.meta-table {
     white-space: pre-wrap;
     color: red;
 }
+
+.module-detail > h1 , .module-apidoc > h1 {
+    padding-bottom: 0em;
+}
+
+.module-view-switch > a.selected {
+    background: rgba(251,255,0,0.5);
+}
+
+.module-view-switch > a:hover.selected {
+    background: yellow;
+}
+

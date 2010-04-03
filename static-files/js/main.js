@@ -86,6 +86,7 @@ function startApp(jQuery, window) {
           $(this).attr("target", "_self");
       });
   }
+
   function insertBugzillaLinks(text) {
     return text.replace(BUGZILLA_REGEXP,
                         "bug [$1](" + BUGZILLA_SHOW + "$1)");
@@ -313,8 +314,8 @@ function startApp(jQuery, window) {
                  if (dom)
 										 entry.find(".apidoc").html("").append(dom);
 
-								 entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName);
-								 entry.find(".module-apidoc-button").attr("href","#apidoc/"+pkgName+"/"+moduleName);
+								 entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName).removeClass("selected");
+								 entry.find(".module-apidoc-button").attr("href","#apidoc/"+pkgName+"/"+moduleName).addClass("selected");
 								 prettyPrint();
                  showMainContent(entry, pkgFileUrl(pkg, filename));
                });
@@ -331,8 +332,8 @@ function startApp(jQuery, window) {
     renderPkgAPI(pkg, source_filename, json_filename, entry.find(".docs"),
                  function(please_display) {
                    if (please_display) {
-                     entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName);
-					 entry.find(".module-apidoc-button").attr("href","#apidoc/"+pkgName+"/"+moduleName);
+					 entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName).addClass("selected");
+					 entry.find(".module-apidoc-button").attr("href","#apidoc/"+pkgName+"/"+moduleName).removeClass("selected");
 
                      showMainContent(entry, pkgFileUrl(pkg, source_filename));
                    }     
