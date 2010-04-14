@@ -97,9 +97,7 @@ def follow_file(filename):
         yield newstuff
 
 class FennecProfile(mozrunner.Profile):
-    preferences = {'browser.console.showInPanel': True,
-                   'javascript.options.showInConsole': True,
-                   'browser.dom.window.dump.enabled': True}
+    preferences = {}
 
     names = ['fennec']
 
