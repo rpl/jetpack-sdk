@@ -31,6 +31,8 @@ def install_chrome(harness_root_dir, main_package_dir):
         shutil.copytree(source_chrome_dir, target_chrome_dir) # NOTE: this copy chrome tree
 
     ### NOTE: clean legacy chrome stuff
+    ### WARN: this will remove any existent chrome dirs (and chrome.manifest) from the template dir
+    ### on exit (it's not a problem until template dir don't contains any chrome file by itself)
     @atexit.register
     def cleanup_installed_chrome():
         os.remove(target_chrome_manifest)
