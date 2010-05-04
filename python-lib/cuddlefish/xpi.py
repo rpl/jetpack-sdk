@@ -42,9 +42,13 @@ def build_xpi(template_root_dir, manifest, xpi_name,
     ### NOTE: copy into the xpi all the legacy chrome stuff (chrome.manifest and chrome dirs)
     source_chrome_manifest = os.path.join(main_package_dir,'chrome.manifest')
     source_chrome_dir = os.path.join(main_package_dir,'chrome')
+    source_default_prefs = os.path.join(main_package_dir,'default_prefs.js')
 
     if os.path.exists(source_chrome_manifest):        
         zf.write(str(source_chrome_manifest), 'chrome.manifest')
+
+    if os.path.exists(source_default_prefs):        
+        zf.write(str(source_default_prefs), os.path.join("default", "preferences", "default_prefs.js"))
 
     if os.path.exists(source_chrome_dir):
         abs_dirname = source_chrome_dir
