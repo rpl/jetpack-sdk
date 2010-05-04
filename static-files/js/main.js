@@ -101,112 +101,105 @@ function startApp(jQuery, window) {
     hunks.forEach(render_hunk);
   }
 
-	function renderAnnotatedSource(code) {
-		function insertBugzillaLinks(text) {
-			return text.replace(BUGZILLA_REGEXP,
-  												"bug [$1](" + BUGZILLA_SHOW + "$1)");
-		}
+  function renderAnnotatedSource(code) {
+    function insertBugzillaLinks(text) {
+      return text.replace(BUGZILLA_REGEXP, "bug [$1](" + BUGZILLA_SHOW + "$1)");
+    }
 
-		function removePyDoctestCode(text) {
-			return text.replace(DOCTEST_REGEXP, "")
-             .replace(DOCTEST_BLANKLINE_REGEXP, "");
-		}
+    function removePyDoctestCode(text) {
+      return text.replace(DOCTEST_REGEXP, "")
+                 .replace(DOCTEST_BLANKLINE_REGEXP, "");
+    }
 
-		function markdownToHtml(text) {
-			var converter = new Showdown.converter();
-			text = removePyDoctestCode(insertBugzillaLinks(text));
-			return converter.makeHtml(text);
-		}
+    function markdownToHtml(text) {
+      var converter = new Showdown.converter();
+      text = removePyDoctestCode(insertBugzillaLinks(text));
+      return converter.makeHtml(text);
+    }
 
-		var lines = code.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-		var blocks = [];
-		var blockText = "";
-		var codeText = "";
-		var firstCommentLine;
-		var lastCommentLine;
-		var div = $("<div class=\"annotatedsource-container\"/>");
+    var lines = code.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+    var blocks = [];
+    var blockText = "";
+    var codeText = "";
+    var firstCommentLine;
+    var lastCommentLine;
+    var div = $("<div class=\"annotatedsource-container\"/>");
 
     function trim(str) {
       return str.replace(/^\s+|\s+$/g,"");
     };
 
-		function maybeAppendBlock() {
-				if (blockText)
-						blocks.push({text: blockText,
-												 lineno: firstCommentLine,
-												 numLines: lastCommentLine - firstCommentLine + 1,
-												 code: codeText});
-     
-				else if (codeText) // WORKAROUND: added to print a not commented source file
-						blocks.push({text: "",
-												 lineno: firstCommentLine,
-												 numLines: lastCommentLine - firstCommentLine + 1,
-												 code: codeText});
-		}
+    function maybeAppendBlock() {
+      if (blockText)
+        blocks.push({text: blockText,
+                     lineno: firstCommentLine,
+                     numLines: lastCommentLine - firstCommentLine + 1,
+                     code: codeText});
+      // WORKAROUND: added to print a not commented source file
+      else if (codeText) 
+        blocks.push({text: "",
+                     lineno: firstCommentLine,
+                     numLines: lastCommentLine - firstCommentLine + 1,
+                     code: codeText});
+    }
 
-		jQuery.each(
-				lines,
-				function(lineNum) {
-						var line = this;
-						var isCode = true;
-						var isComment = (trim(line).indexOf("//") == 0);
-						if (isComment) {
-								var startIndex = line.indexOf("//");
-								var text = trim(line.slice(startIndex + 3));
-								if (lineNum == lastCommentLine + 1) {
-										blockText += text + "\n";
-										lastCommentLine += 1;
-										isCode = false;
-								} else if (text.charAt(0) == "=" || text.charAt(0) == "#") {
-										maybeAppendBlock();
-										firstCommentLine = lineNum;
-										lastCommentLine = lineNum;
-										blockText = text + "\n";
-										codeText = "";
-										isCode = false;
-								}
-						}
-						if (isCode)
-								codeText += line + "\r\n";
-		});
-		
-		maybeAppendBlock();
+    jQuery.each(lines, function(lineNum) {
+      var line = this;
+      var isCode = true;
+      var isComment = (trim(line).indexOf("//") == 0);
+      if (isComment) {
+        var startIndex = line.indexOf("//");
+        var text = trim(line.slice(startIndex + 3));
+        if (lineNum == lastCommentLine + 1) {
+          blockText += text + "\n";
+          lastCommentLine += 1;
+          isCode = false;
+        } else if (text.charAt(0) == "=" || text.charAt(0) == "#") {
+          maybeAppendBlock();
+          firstCommentLine = lineNum;
+          lastCommentLine = lineNum;
+          blockText = text + "\n";
+          codeText = "";
+          isCode = false;
+        }
+      }
+      if (isCode)
+        codeText += line + "\r\n";
+    });
+    
+    maybeAppendBlock();
 
-		jQuery.each(
-				blocks,
-				function(i) {
-						var doc_parent = $('<div class="annotated-src-doc">'+
-												 '<div class="annotated-src-doc-header"></div>'+
-												 '</div>');
-						//$(docs).css(App.columnCss); TODO: apply a style
-						var docs = $('<div class="documentation">');
+    jQuery.each(blocks, function(i) {
+      var doc_parent = $('<div class="annotated-src-doc">'+
+                         '<div class="annotated-src-doc-header"></div>'+
+                         '</div>');
+      var docs = $('<div class="documentation">');
+      
+      $(docs).html(markdownToHtml(this.text));
+      $(doc_parent).append(docs);
+      $(div).append(doc_parent);
+      var code_parent = $('<div class="annotated-src-code">'+
+                          '<div class="annotated-src-code-header">Show</div>'+
+                          '</div>');
+      var code = $('<pre class="code prettyprint">');
+      code.text(this.code);
+      code_parent.append(code);
+      $(div).append(code_parent);
+            
+      // Make sure the block ends with a blank line to make it high enough.
+      // For IE8 an extra space is needed, because otherwise the \n is ignored.
+      // FIXME: This doesn't fix issue 13 in IE7 yet.
+      code.append('\n ');
+            
+      var docsSurplus = docs.height() - code.height() + 1;
+      if (docsSurplus > 0)
+        code.css({paddingBottom: docsSurplus + "px"});
+      
+      $(div).append('<div class="divider">');
+    });
 
-						$(docs).html(markdownToHtml(this.text));
-						$(doc_parent).append(docs);
-						$(div).append(doc_parent);
-						var code_parent = $('<div class="annotated-src-code">'+
-																'<div class="annotated-src-code-header">Show</div>'+
-																'</div>');
-						var code = $('<pre class="code prettyprint">');
-						//$(code).css(App.columnCss); TODO: apply a style
-						code.text(this.code);
-						code_parent.append(code);
-						$(div).append(code_parent);
-						
-						// Make sure the block ends with a blank line to make it high enough.
-						// For IE8 an extra space is needed, because otherwise the \n is ignored.
-						// FIXME: This doesn't fix issue 13 in IE7 yet.
-						code.append('\n ');
-						
-						var docsSurplus = docs.height() - code.height() + 1;
-						if (docsSurplus > 0)
-								code.css({paddingBottom: docsSurplus + "px"});
-						
-						$(div).append('<div class="divider">');
-		});
-
-		return div;
-	}
+    return div;
+  }
 
   function getPkgFile(pkg, filename, filter, cb) {
     if (pkgHasFile(pkg, filename)) {
@@ -310,7 +303,7 @@ function startApp(jQuery, window) {
     queuedContent = null;
   }
 
-	function showAnnotatedSource(pkgName, moduleName) {
+  function showAnnotatedSource(pkgName, moduleName) {
     var pkg = packages[pkgName];
     var entry = $("#templates .module-annotatedsource").clone();
     var filename = "lib/" + moduleName + ".js";
@@ -319,17 +312,17 @@ function startApp(jQuery, window) {
     queueMainContent(entry);
     getPkgFile(pkg, filename, renderAnnotatedSource,
                function(dom) {
-								 if (dom) 
-										 entry.find(".annotatedsource").html("").append(dom);
+                 if (dom) 
+                     entry.find(".annotatedsource").html("").append(dom);
 
-								 entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName).removeClass("selected");
-								 entry.find(".module-annotatedsource-button").attr("href","#source/"+pkgName+"/"+moduleName).addClass("selected");
+                 entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName).removeClass("selected");
+                 entry.find(".module-annotatedsource-button").attr("href","#source/"+pkgName+"/"+moduleName).addClass("selected");
 
-								 entry.find(".annotated-src-code-header").click(function () {
-									 $(this.nextSibling).toggle();
-								 });
+                 entry.find(".annotated-src-code-header").click(function () {
+                   $(this.nextSibling).toggle();
+                 });
 
-								 prettyPrint();
+                 prettyPrint();
                  showMainContent(entry, pkgFileUrl(pkg, filename));
                });
   }
@@ -345,8 +338,8 @@ function startApp(jQuery, window) {
     renderPkgAPI(pkg, source_filename, json_filename, entry.find(".docs"),
                  function(please_display) {
                    if (please_display) {
-          					 entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName).addClass("selected");
-					           entry.find(".module-annotatedsource-button").attr("href","#source/"+pkgName+"/"+moduleName).removeClass("selected");
+                     entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName).addClass("selected");
+                     entry.find(".module-annotatedsource-button").attr("href","#source/"+pkgName+"/"+moduleName).removeClass("selected");
 
                      showMainContent(entry, pkgFileUrl(pkg, source_filename));
                    }     
