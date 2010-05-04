@@ -22,6 +22,8 @@ def install_chrome(harness_root_dir, main_package_dir):
     target_chrome_manifest = os.path.join(harness_root_dir, 'chrome.manifest')
     source_chrome_dir = os.path.join(main_package_dir, 'chrome')
     target_chrome_dir = os.path.join(harness_root_dir, 'chrome')
+    source_default_prefs = os.path.join(main_package_dir, 'default_prefs.js')
+    target_default_prefs = os.path.join(harness_root_dir, 'defaults/preferences/default_prefs.js')
 
     ### NOTE: copy into the xpi all the legacy chrome stuff (chrome.manifest and chrome dirs)
     if os.path.exists(source_chrome_manifest):
@@ -30,13 +32,8 @@ def install_chrome(harness_root_dir, main_package_dir):
     if os.path.exists(source_chrome_dir):       
         shutil.copytree(source_chrome_dir, target_chrome_dir) # NOTE: this copy chrome tree
 
-    ### NOTE: clean legacy chrome stuff
-    ### WARN: this will remove any existent chrome dirs (and chrome.manifest) from the template dir
-    ### on exit (it's not a problem until template dir don't contains any chrome file by itself)
-    @atexit.register
-    def cleanup_installed_chrome():
-        os.remove(target_chrome_manifest)
-        shutil.rmtree(target_chrome_dir)
+    if os.path.exists(source_default_prefs):
+        shutil.copyfile(source_default_prefs, target_default_prefs) 
 
 def install_xpts(harness_root_dir, xpts):
     """
@@ -54,11 +51,6 @@ def install_xpts(harness_root_dir, xpts):
                               os.path.basename(abspath))
         shutil.copyfile(abspath, target)
         installed_xpts.append(target)
-
-    @atexit.register
-    def cleanup_installed_xpts():
-        for path in installed_xpts:
-            os.remove(path)
 
 def follow_file(filename):
     """
@@ -246,6 +238,16 @@ def run_app(harness_root_dir, harness_options, xpts,
     addons = []
     cmdargs = []
     preferences = {}
+
+    # NOTE: Clone app-extension template so we can rmtree on exit 
+    # (without any risk to delete files from custom templates)
+    tmp_container = tempfile.mkdtemp()
+    tmp_dirname = os.path.join(tmp_container, "app-extension")
+    shutil.copytree(harness_root_dir, tmp_dirname)
+    harness_root_dir = tmp_dirname
+    @atexit.register
+    def cleanup_cloned_apptemplate():
+        shutil.rmtree(tmp_container)
 
     if app_type == "xulrunner":
         profile_class = XulrunnerAppProfile
