@@ -23,7 +23,7 @@ def install_chrome(harness_root_dir, main_package_dir):
     source_chrome_dir = os.path.join(main_package_dir, 'chrome')
     target_chrome_dir = os.path.join(harness_root_dir, 'chrome')
     source_default_prefs = os.path.join(main_package_dir, 'default_prefs.js')
-    target_default_prefs = os.path.join(harness_root_dir, 'defaults/preferences/default_prefs.js')
+    target_default_prefs = os.path.join(harness_root_dir, os.path.join('defaults', 'preferences', 'default_prefs.js'))
 
     ### NOTE: copy into the xpi all the legacy chrome stuff (chrome.manifest and chrome dirs)
     if os.path.exists(source_chrome_manifest):
