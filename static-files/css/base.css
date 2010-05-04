@@ -225,7 +225,7 @@ table.meta-table {
     color: red;
 }
 
-.module-detail > h1 , .module-apidoc > h1 {
+.module-detail > h1 , .module-annotatedsource > h1 {
     padding-bottom: 0em;
 }
 
@@ -237,3 +237,22 @@ table.meta-table {
     background: yellow;
 }
 
+.annotatedsource-container > .divider {
+    clear: both;
+}
+
+.annotated-src-doc-header {
+   background: black;
+		color: white;
+		width: 100%;
+}
+
+.annotated-src-code-header {
+    background: black;
+		color: white;
+		width: 100%;
+}
+
+.annotated-src-code pre.code {
+    display: none;
+}

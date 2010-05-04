@@ -33,10 +33,10 @@ function startApp(jQuery, window) {
       var moduleName = parts.slice(2).join("/");
       showModuleDetail(pkgName, moduleName);
       break;
-		case "apidoc":
+		case "source":
       var pkgName = parts[1];
       var moduleName = parts.slice(2).join("/");
-      showApidocDetail(pkgName, moduleName);
+      showAnnotatedSource(pkgName, moduleName);
       break;
     case "guide":
       showGuideDetail(parts[1]);
@@ -87,22 +87,6 @@ function startApp(jQuery, window) {
       });
   }
 
-  function insertBugzillaLinks(text) {
-    return text.replace(BUGZILLA_REGEXP,
-                        "bug [$1](" + BUGZILLA_SHOW + "$1)");
-  }
-
-  function removePyDoctestCode(text) {
-    return text.replace(DOCTEST_REGEXP, "")
-               .replace(DOCTEST_BLANKLINE_REGEXP, "");
-  }
-
-  function markdownToHtml(text) {
-    var converter = new Showdown.converter();
-    text = removePyDoctestCode(insertBugzillaLinks(text));
-    return converter.makeHtml(text);
-  }
-
   function renderInterleavedAPIDocs(where, hunks) {
     $(where).empty();
     function render_hunk (hunk) {
@@ -117,14 +101,30 @@ function startApp(jQuery, window) {
     hunks.forEach(render_hunk);
   }
 
-	function sourceToApidoc(code) {
+	function renderAnnotatedSource(code) {
+		function insertBugzillaLinks(text) {
+			return text.replace(BUGZILLA_REGEXP,
+  												"bug [$1](" + BUGZILLA_SHOW + "$1)");
+		}
+
+		function removePyDoctestCode(text) {
+			return text.replace(DOCTEST_REGEXP, "")
+             .replace(DOCTEST_BLANKLINE_REGEXP, "");
+		}
+
+		function markdownToHtml(text) {
+			var converter = new Showdown.converter();
+			text = removePyDoctestCode(insertBugzillaLinks(text));
+			return converter.makeHtml(text);
+		}
+
 		var lines = code.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
 		var blocks = [];
 		var blockText = "";
 		var codeText = "";
 		var firstCommentLine;
 		var lastCommentLine;
-		var div = $("<div class=\"apidoc-container\"/>");
+		var div = $("<div class=\"annotatedsource-container\"/>");
 
     function trim(str) {
       return str.replace(/^\s+|\s+$/g,"");
@@ -175,14 +175,23 @@ function startApp(jQuery, window) {
 		jQuery.each(
 				blocks,
 				function(i) {
-						var docs = $('<div class="documentation">');
+						var doc_parent = $('<div class="annotated-src-doc">'+
+												 '<div class="annotated-src-doc-header"></div>'+
+												 '</div>');
 						//$(docs).css(App.columnCss); TODO: apply a style
+						var docs = $('<div class="documentation">');
+
 						$(docs).html(markdownToHtml(this.text));
-						$(div).append(docs);
+						$(doc_parent).append(docs);
+						$(div).append(doc_parent);
+						var code_parent = $('<div class="annotated-src-code">'+
+																'<div class="annotated-src-code-header">Show</div>'+
+																'</div>');
 						var code = $('<pre class="code prettyprint">');
 						//$(code).css(App.columnCss); TODO: apply a style
 						code.text(this.code);
-						$(div).append(code);
+						code_parent.append(code);
+						$(div).append(code_parent);
 						
 						// Make sure the block ends with a blank line to make it high enough.
 						// For IE8 an extra space is needed, because otherwise the \n is ignored.
@@ -301,21 +310,25 @@ function startApp(jQuery, window) {
     queuedContent = null;
   }
 
-	function showApidocDetail(pkgName, moduleName) {
-		//TODO: generate apidoc
+	function showAnnotatedSource(pkgName, moduleName) {
     var pkg = packages[pkgName];
-    var entry = $("#templates .module-apidoc").clone();
+    var entry = $("#templates .module-annotatedsource").clone();
     var filename = "lib/" + moduleName + ".js";
 
     entry.find(".name").text(moduleName);
     queueMainContent(entry);
-    getPkgFile(pkg, filename, sourceToApidoc,
+    getPkgFile(pkg, filename, renderAnnotatedSource,
                function(dom) {
-                 if (dom)
-										 entry.find(".apidoc").html("").append(dom);
+								 if (dom) 
+										 entry.find(".annotatedsource").html("").append(dom);
 
 								 entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName).removeClass("selected");
-								 entry.find(".module-apidoc-button").attr("href","#apidoc/"+pkgName+"/"+moduleName).addClass("selected");
+								 entry.find(".module-annotatedsource-button").attr("href","#source/"+pkgName+"/"+moduleName).addClass("selected");
+
+								 entry.find(".annotated-src-code-header").click(function () {
+									 $(this.nextSibling).toggle();
+								 });
+
 								 prettyPrint();
                  showMainContent(entry, pkgFileUrl(pkg, filename));
                });
@@ -332,8 +345,8 @@ function startApp(jQuery, window) {
     renderPkgAPI(pkg, source_filename, json_filename, entry.find(".docs"),
                  function(please_display) {
                    if (please_display) {
-					 entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName).addClass("selected");
-					 entry.find(".module-apidoc-button").attr("href","#apidoc/"+pkgName+"/"+moduleName).removeClass("selected");
+          					 entry.find(".module-overview-button").attr("href","#module/"+pkgName+"/"+moduleName).addClass("selected");
+					           entry.find(".module-annotatedsource-button").attr("href","#source/"+pkgName+"/"+moduleName).removeClass("selected");
 
                      showMainContent(entry, pkgFileUrl(pkg, source_filename));
                    }     
